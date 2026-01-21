@@ -1,6 +1,5 @@
 require( "iuplua" )
-require( "iupluacontrols" )
-require( "iuplua_pplot"  )
+require( "iuplua_pplot" )
 
 plot = iup.pplot{
   TITLE = "Simple Line",
