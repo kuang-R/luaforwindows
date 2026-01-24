@@ -1,3 +1,4 @@
+local lpeg = require("lpeg")
 local json = require("json")
 local lunit = require("lunit")
 local math = require("math")
@@ -7,7 +8,11 @@ local encode = json.encode
 -- DECODE NOT 'local' due to requirement for testutil to access it
 decode = json.decode.getDecoder(false)
 
-module("lunit-calls", lunit.testcase, package.seeall)
+if not module then
+    _ENV = lunit.module("lunit-calls", 'seeall')
+else
+    module("lunit-calls", lunit.testcase, package.seeall)
+end
 
 function setup()
 	-- Ensure that the decoder is reset
@@ -101,11 +106,48 @@ end
 function test_permitted()
 	local strict = {
 		calls = {
-			defs = { call = true }
+			defs = { call = true, other = true }
 		}
 	}
 	local decoder = json.decode.getDecoder(strict)
 	assert(decoder("call(1)").name == 'call')
+	assert(decoder("other(1)").name == 'other')
+end
+
+function test_permitted_trailing()
+	local strict = {
+		calls = {
+			defs = { call = true, other = true }
+		}
+	}
+	local decoder = json.decode.getDecoder(strict)
+	assert(decoder("call(1,)").name == 'call')
+	assert(decoder("other(1,)").name == 'other')
+end
+function test_permitted_no_trailing()
+	local strict = {
+		calls = {
+			defs = { call = true, other = true },
+			trailingComma = false
+		}
+	}
+	local decoder = json.decode.getDecoder(strict)
+	assert_error(function()
+		decoder("call(1,)")
+	end)
+	assert_error(function()
+		decoder("other(1,)")
+	end)
+end
+function test_permitted_nested()
+	local strict = {
+		calls = {
+			defs = { call = true, other = true }
+		}
+	}
+	local decoder = json.decode.getDecoder(strict)
+	assert(decoder("call(call(1))").name == 'call')
+	assert(decoder("other(call(1))").name == 'other')
 end
 
 function test_not_defined_fail()

@@ -9,15 +9,18 @@ local type = type
 local tostring = tostring
 
 local table_concat = require("table").concat
-local util_merge = require("json.util").merge
+local jsonutil = require("json.util")
 
-module("json.encode.object")
+local _ENV = nil
 
 local defaultOptions = {
 }
 
-default = nil
-strict = nil
+local modeOptions = {}
+
+local function mergeOptions(options, mode)
+	jsonutil.doOptionMerge(options, false, 'object', defaultOptions, mode and modeOptions[mode])
+end
 
 --[[
 	Cleanup function to unmark a value as in the encoding process and return
@@ -57,11 +60,18 @@ local function encodeTable(tab, options, state)
 	return unmarkAfterEncode(tab, state, compositeEncoder(valueEncoder, '{', '}', nil, tab, encode, state))
 end
 
-function getEncoder(options)
-	options = options and util_merge({}, defaultOptions, options) or defaultOptions
+local function getEncoder(options)
+	options = options and jsonutil.merge({}, defaultOptions, options) or defaultOptions
 	return {
 		table = function(tab, state)
 			return encodeTable(tab, options, state)
 		end
 	}
 end
+
+local object = {
+	mergeOptions = mergeOptions,
+	getEncoder = getEncoder
+}
+
+return object

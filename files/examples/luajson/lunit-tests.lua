@@ -1,10 +1,18 @@
 local json = require("json")
 local lunit = require("lunit")
 local testutil = require("testutil")
+local lpeg = require("lpeg")
 -- DECODE NOT 'local' due to requirement for testutil to access it
 decode = json.decode.getDecoder(false)
 
-module("lunit-tests", lunit.testcase, package.seeall)
+local TEST_ENV
+if not module then
+    _ENV = lunit.module("lunit-tests", 'seeall')
+    TEST_ENV = _ENV
+else
+    module("lunit-tests", lunit.testcase, package.seeall)
+    TEST_ENV = _M
+end
 
 function setup()
 	_G["decode"] = json.decode.getDecoder(false)
@@ -35,6 +43,13 @@ function test_preprocess()
 	assert_equal('-Infinity', json.encode(1/0, {preProcess = function(x) return -x end}))
 end
 
+function test_additionalEscapes_only()
+    -- Test that additionalEscapes is processed on its own - side-stepping normal processing
+    assert_equal("Hello\\?", json.decode([["\S"]], { strings = { additionalEscapes = lpeg.C(lpeg.P("S")) / "Hello\\?" } }))
+    -- Test that additionalEscapes overrides any builtin handling
+    assert_equal("Hello\\?", json.decode([["\n"]], { strings = { additionalEscapes = lpeg.C(lpeg.P("n")) / "Hello\\?" } }))
+end
+
 local strictDecoder = json.decode.getDecoder(true)
 
 local function buildStrictDecoder(f)
@@ -44,12 +59,12 @@ local function buildFailedStrictDecoder(f)
 	return testutil.buildFailedPatchedDecoder(f, strictDecoder)
 end
 -- SETUP CHECKS FOR SEQUENCE OF DECODERS
-for k, v in pairs(_M) do
-	if k:match("^test_") and not k:match("_gen$") then
+for k, v in pairs(TEST_ENV) do
+	if k:match("^test_") and not k:match("_gen$") and not k:match("_only$") then
 		if k:match("_nostrict") then
-			_M[k .. "_strict_gen"] = buildFailedStrictDecoder(v)
+			TEST_ENV[k .. "_strict_gen"] = buildFailedStrictDecoder(v)
 		else
-			_M[k .. "_strict_gen"] = buildStrictDecoder(v)
+			TEST_ENV[k .. "_strict_gen"] = buildStrictDecoder(v)
 		end
 	end
 end
